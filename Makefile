@@ -19,6 +19,17 @@ up:
 	@echo ""
 	@echo "=== Stack completo levantado ==="
 	@$(MAKE) status
+	@echo ""
+	@echo "=================================================="
+	@echo " Interfaces disponibles:"
+	@echo "=================================================="
+	@echo "  Prometheus (metricas):           http://localhost:9090"
+	@echo "  Prometheus - Targets:            http://localhost:9090/targets"
+	@echo "  cAdvisor (metricas de sistema):  http://localhost:8081"
+	@echo ""
+	@echo "  Prueba rapida acceso web1:       make kinit-demo"
+	@echo "  Pruebas de fallos:               make test-fault-injection"
+	@echo "=================================================="
 
 ## Propaga la base de datos de principals desde kdc1 (primario) hacia kdc2 (secundario)
 propagate-kerberos:
