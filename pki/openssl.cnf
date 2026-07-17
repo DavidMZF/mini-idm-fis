@@ -1,0 +1,50 @@
+[ ca ]
+default_ca = CA_default
+
+[ CA_default ]
+dir               = /certs
+certs             = $dir
+new_certs_dir     = $dir/newcerts
+database          = $dir/index.txt
+serial            = $dir/serial
+private_key       = $dir/private/ca.key
+certificate       = $dir/ca.crt
+default_md        = sha256
+default_days      = 30
+policy            = policy_loose
+copy_extensions   = copy
+
+[ policy_loose ]
+countryName             = optional
+stateOrProvinceName     = optional
+organizationName        = optional
+organizationalUnitName  = optional
+commonName              = supplied
+emailAddress            = optional
+
+[ req ]
+default_bits       = 256
+default_md         = sha256
+distinguished_name = req_distinguished_name
+x509_extensions     = v3_ca
+prompt              = no
+
+[ req_distinguished_name ]
+C  = EC
+ST = Pichincha
+L  = Quito
+O  = FIS-EPN
+OU = IdM
+CN = FIS Root CA
+
+[ v3_ca ]
+basicConstraints = critical, CA:true
+keyUsage         = critical, keyCertSign, cRLSign
+subjectKeyIdentifier = hash
+
+[ v3_server ]
+basicConstraints = CA:FALSE
+keyUsage         = critical, digitalSignature, keyEncipherment
+extendedKeyUsage  = serverAuth
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer

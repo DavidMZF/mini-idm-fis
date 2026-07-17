@@ -1,0 +1,173 @@
+services:
+  ca-init:
+    build: ./pki
+    container_name: ca-init
+    volumes:
+      - pki-certs:/certs
+    networks:
+      - fis-net
+  ldap1:
+    build: ./ldap/ldap1
+    container_name: ldap1
+    hostname: ldap1.fis.epn.ec
+    extra_hosts:
+      - "lb.fis.epn.ec:172.18.0.100"
+    depends_on:
+      ca-init:
+        condition: service_completed_successfully
+    environment:
+      - DOMAIN=${DOMAIN}
+      - LDAP_BASE_DN=${LDAP_BASE_DN}
+      - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD}
+    volumes:
+      - pki-certs:/certs:ro
+      - ldap1-data:/var/lib/ldap
+      - ldap1-config:/etc/ldap/slapd.d
+      - shared-keytabs:/shared-keytabs:ro
+    networks:
+      fis-net:
+        aliases:
+          - ldap1.fis.epn.ec
+    ports:
+      - "389:389"
+      - "636:636"
+  ldap2:
+    build: ./ldap/ldap2
+    container_name: ldap2
+    hostname: ldap2.fis.epn.ec
+    extra_hosts:
+      - "lb.fis.epn.ec:172.18.0.100"
+    depends_on:
+      ldap1:
+        condition: service_started
+    environment:
+      - DOMAIN=${DOMAIN}
+      - LDAP_BASE_DN=${LDAP_BASE_DN}
+      - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD}
+    volumes:
+      - pki-certs:/certs:ro
+      - ldap2-data:/var/lib/ldap
+      - ldap2-config:/etc/ldap/slapd.d
+      - shared-keytabs:/shared-keytabs:ro
+    networks:
+      fis-net:
+        aliases:
+          - ldap2.fis.epn.ec
+    ports:
+      - "3389:389"
+      - "6636:636"
+  kdc1:
+    build: ./kerberos/kdc1
+    container_name: kdc1
+    hostname: kdc1.fis.epn.ec
+    extra_hosts:
+      - "kdc2.fis.epn.ec:172.18.0.2"
+    environment:
+      - REALM=${REALM}
+      - KRB5_MASTER_PASSWORD=${KRB5_MASTER_PASSWORD}
+      - KADMIN_PASSWORD=${KADMIN_PASSWORD}
+    volumes:
+      - kdc1-data:/var/lib/krb5kdc
+      - kdc1-keytabs:/etc/krb5kdc
+      - shared-keytabs:/shared-keytabs
+    networks:
+      fis-net:
+        aliases:
+          - kdc1.fis.epn.ec
+    ports:
+      - "88:88/udp"
+      - "88:88/tcp"
+      - "464:464/udp"
+      - "749:749/tcp"
+  kdc2:
+    build: ./kerberos/kdc2
+    container_name: kdc2
+    hostname: kdc2.fis.epn.ec
+    extra_hosts:
+      - "kdc1.fis.epn.ec:172.18.0.3"
+    depends_on:
+      - kdc1
+    environment:
+      - REALM=${REALM}
+      - KRB5_MASTER_PASSWORD=${KRB5_MASTER_PASSWORD}
+    volumes:
+      - kdc2-data:/var/lib/krb5kdc
+      - shared-keytabs:/shared-keytabs:ro
+    networks:
+      fis-net:
+        aliases:
+          - kdc2.fis.epn.ec
+    ports:
+      - "8088:88/udp"
+      - "8088:88/tcp"
+      - "8754:754/tcp"
+
+  lb1:
+    build: ./haproxy/lb1
+    container_name: lb1
+    hostname: lb1.fis.epn.ec
+    depends_on:
+      - ldap1
+      - ldap2
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+      - NET_RAW
+    networks:
+      fis-net:
+        aliases:
+          - lb1.fis.epn.ec
+    ports:
+      - "1389:389"
+      - "1636:636"
+
+  lb2:
+    build: ./haproxy/lb2
+    container_name: lb2
+    hostname: lb2.fis.epn.ec
+    depends_on:
+      - ldap1
+      - ldap2
+    cap_add:
+      - NET_ADMIN
+      - NET_BROADCAST
+      - NET_RAW
+    networks:
+      fis-net:
+        aliases:
+          - lb2.fis.epn.ec
+    ports:
+      - "2389:389"
+      - "2636:636"
+
+  web1:
+    build: ./webapp
+    container_name: web1
+    hostname: web1.fis.epn.ec
+    depends_on:
+      - ldap1
+      - kdc1
+    volumes:
+      - pki-certs:/certs:ro
+      - shared-keytabs:/shared-keytabs:ro
+    networks:
+      fis-net:
+        aliases:
+          - web1.fis.epn.ec
+    ports:
+      - "8443:443"
+
+networks:
+  fis-net:
+    name: ${NETWORK_NAME}
+    driver: bridge
+volumes:
+  pki-certs:
+  ldap1-data:
+  ldap1-config:
+  ldap2-data:
+  ldap2-config:
+  kdc1-data:
+  kdc1-keytabs:
+  kdc2-data:
+  shared-keytabs:

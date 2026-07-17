@@ -1,0 +1,7 @@
+dn: ou=people,dc=fis,dc=epn,dc=ec
+objectClass: organizationalUnit
+ou: people
+
+dn: ou=groups,dc=fis,dc=epn,dc=ec
+objectClass: organizationalUnit
+ou: groups

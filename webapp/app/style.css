@@ -1,0 +1,45 @@
+body {
+    font-family: sans-serif;
+    background: #1a1a2e;
+    color: #eaeaea;
+    padding: 40px;
+}
+.card {
+    max-width: 500px;
+    margin: 60px auto;
+    background: #16213e;
+    padding: 30px;
+    border-radius: 8px;
+    text-align: center;
+}
+h1 {
+    color: #eaeaea;
+    background: #0f3460;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+.subtitle {
+    color: #aaa;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+}
+.user-box {
+    background: #0f3460;
+    padding: 14px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+}
+.label {
+    color: #aaa;
+    margin-right: 8px;
+}
+.user {
+    color: #4cc9f0;
+    font-weight: bold;
+}
+.footer, .realm {
+    font-size: 0.75rem;
+    color: #666;
+    margin-top: 6px;
+}

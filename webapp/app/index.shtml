@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>FIS - Portal de Identidad</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="card">
+        <h1>Sesion autenticada</h1>
+        <p class="subtitle">Escuela Politecnica Nacional - Facultad de Ingenieria de Sistemas</p>
+        <div class="user-box">
+            <span class="label">Usuario:</span>
+            <span class="user"><!--#echo var="REMOTE_USER" --></span>
+        </div>
+        <p class="footer">Kerberos (SPNEGO) + TLS - miniIdM</p>
+        <p class="realm">FIS.EPN.EC</p>
+    </div>
+</body>
+</html>

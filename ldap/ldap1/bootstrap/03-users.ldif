@@ -1,0 +1,27 @@
+dn: uid=fmorales,ou=people,dc=fis,dc=epn,dc=ec
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: fmorales
+cn: Francisco Morales
+sn: Morales
+givenName: Francisco
+mail: fmorales@fis.epn.ec
+uidNumber: 10001
+gidNumber: 5000
+homeDirectory: /home/fmorales
+loginShell: /bin/bash
+
+dn: uid=dnoboa,ou=people,dc=fis,dc=epn,dc=ec
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: dnoboa
+cn: Daniel Noboa
+sn: Noboa
+givenName: Daniel
+mail: dnoboa@fis.epn.ec
+uidNumber: 10002
+gidNumber: 5000
+homeDirectory: /home/dnoboa
+loginShell: /bin/bash

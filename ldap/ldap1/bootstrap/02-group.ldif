@@ -1,0 +1,4 @@
+dn: cn=estudiantes,ou=groups,dc=fis,dc=epn,dc=ec
+objectClass: posixGroup
+cn: estudiantes
+gidNumber: 5000
