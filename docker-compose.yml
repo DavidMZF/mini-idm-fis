@@ -70,6 +70,7 @@ services:
       - kdc1-data:/var/lib/krb5kdc
       - kdc1-keytabs:/etc/krb5kdc
       - shared-keytabs:/shared-keytabs
+      - kdc1-logs:/var/log/krb5kdc
     networks:
       fis-net:
         aliases:
@@ -157,6 +158,74 @@ services:
     ports:
       - "8443:443"
 
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: cadvisor
+    hostname: cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      fis-net:
+        aliases:
+          - cadvisor
+    ports:
+      - "8081:8080"
+
+  kdc-exporter:
+    build: ./monitoring/kdc-exporter
+    container_name: kdc-exporter
+    hostname: kdc-exporter
+    depends_on:
+      - kdc1
+    volumes:
+      - kdc1-logs:/var/log/krb5kdc:ro
+    networks:
+      fis-net:
+        aliases:
+          - kdc-exporter
+
+  ldap-exporter:
+    build: ./monitoring/ldap-exporter
+    container_name: ldap-exporter
+    hostname: ldap-exporter
+    depends_on:
+      - ldap1
+      - ldap2
+    environment:
+      - LDAP_BASE_DN=${LDAP_BASE_DN}
+      - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD}
+      - LDAP1_HOST=ldap1.fis.epn.ec
+      - LDAP2_HOST=ldap2.fis.epn.ec
+      - LDAPTLS_CACERT=/certs/ca.crt
+    volumes:
+      - pki-certs:/certs:ro
+    networks:
+      fis-net:
+        aliases:
+          - ldap-exporter
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: prometheus
+    hostname: prometheus
+    depends_on:
+      - cadvisor
+      - kdc-exporter
+      - ldap-exporter
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      fis-net:
+        aliases:
+          - prometheus
+    ports:
+      - "9090:9090"
+
 networks:
   fis-net:
     name: ${NETWORK_NAME}
@@ -169,5 +238,7 @@ volumes:
   ldap2-config:
   kdc1-data:
   kdc1-keytabs:
+  kdc1-logs:
   kdc2-data:
   shared-keytabs:
+  prometheus-data:

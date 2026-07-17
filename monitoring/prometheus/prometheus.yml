@@ -1,0 +1,27 @@
+global:
+  scrape_interval: 10s
+  evaluation_interval: 10s
+
+scrape_configs:
+  # Prometheus se auto-monitorea
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # CPU y memoria por contenedor (todos los servicios del stack)
+  - job_name: "cadvisor"
+    static_configs:
+      - targets: ["cadvisor:8080"]
+
+  # Queries/sec de Kerberos (AS_REQ / TGS_REQ, exito y error) via parseo de log
+  - job_name: "kdc-exporter"
+    static_configs:
+      - targets: ["kdc-exporter:9100"]
+        labels:
+          kdc_node: "kdc1"
+
+  # Queries/sec y estadisticas de OpenLDAP (cn=monitor) + retraso de
+  # replicacion entre ldap1 (provider) y ldap2 (consumer)
+  - job_name: "ldap-exporter"
+    static_configs:
+      - targets: ["ldap-exporter:9330"]

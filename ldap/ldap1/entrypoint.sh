@@ -92,6 +92,24 @@ olcDbIndex: entryUUID eq
 EOF
   ldapmodify -Y EXTERNAL -H ldapi:/// -f /tmp/syncprov_index.ldif
 
+  echo "=== Habilitando backend cn=monitor (metricas para Prometheus) ==="
+  cat > /tmp/monitor_module.ldif <<EOF
+dn: cn=module{0},cn=config
+changetype: modify
+add: olcModuleLoad
+olcModuleLoad: back_monitor
+EOF
+  ldapmodify -Y EXTERNAL -H ldapi:/// -f /tmp/monitor_module.ldif || echo "  (back_monitor ya cargado, continuando)"
+
+  cat > /tmp/monitor_db.ldif <<EOF
+dn: olcDatabase=Monitor,cn=config
+objectClass: olcDatabaseConfig
+objectClass: olcMonitorConfig
+olcDatabase: Monitor
+olcAccess: to * by dn.exact="cn=admin,${BASE_DN}" read by * none
+EOF
+  ldapadd -Y EXTERNAL -H ldapi:/// -f /tmp/monitor_db.ldif || echo "  (base Monitor ya existente, continuando)"
+
   echo "=== Deteniendo instancia temporal de slapd ==="
   pkill -TERM slapd 2>/dev/null || true
 

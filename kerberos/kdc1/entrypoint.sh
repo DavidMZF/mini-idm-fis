@@ -36,6 +36,7 @@ else
   echo "=== Ya configurado previamente, iniciando directamente ==="
 fi
 echo "=== Iniciando krb5kdc y kadmind ==="
+mkdir -p /var/log/krb5kdc
 krb5kdc
 kadmind -nofork &
 wait
