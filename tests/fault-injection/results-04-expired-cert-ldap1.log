@@ -102,3 +102,55 @@ Fin: 2026-07-17 02:31:39
 Tiempo de deteccion del rechazo TLS: 117 ms
 Resultados completos en: tests/fault-injection/results-04-expired-cert-ldap1.log
 ==========================================
+==========================================
+EXPERIMENTO: Certificado expirado en ldap1
+Inicio: 2026-07-17 03:48:02
+==========================================
+
+[1] Verificando que ldap1 funciona normalmente con su certificado valido...
+OK: certificado valido funciona correctamente.
+
+[2] Respaldando certificado valido actual...
+Backup creado dentro de ldap1: ldap1.crt.valido / ldap1.key.valido
+
+[3] Generando certificado VENCIDO para ldap1...
+OK: certificado generado confirmado como VENCIDO (openssl -checkend).
+
+[4] Instalando certificado vencido...
+NOTA: el entrypoint.sh de ldap1 copia /certs/ldap1.{crt,key} -> /etc/ldap/certs/ en
+CADA arranque. Para que el cert vencido sobreviva a un restart, hay que
+sobrescribir tambien la fuente en el volumen pki-certs (no solo el destino).
+Certificado vencido copiado a pki-certs (fuente) y respaldo del original guardado como *.pkibak
+Reiniciando ldap1 (docker restart, para no matar el PID 1 desde un exec externo)...
+
+[5] Verificando que la conexion TLS es RECHAZADA por certificado vencido...
+ldap_sasl_bind(SIMPLE): Can't contact LDAP server (-1)
+OK: conexion rechazada correctamente (exit code 255).
+Tiempo de deteccion del rechazo TLS: 177 ms
+(el mensaje de error no incluyo las palabras esperadas -- ver diagnostico [5b] abajo)
+
+[5b] Diagnostico adicional con openssl s_client (mensaje TLS detallado)...
+verify return:1
+depth=0 C=EC, ST=Pichincha, O=FIS-EPN, OU=IdM, CN=ldap1-expired-test-1784278082.fis.epn.ec
+verify error:num=10:certificate has expired
+verify return:1
+depth=0 C=EC, ST=Pichincha, O=FIS-EPN, OU=IdM, CN=ldap1-expired-test-1784278082.fis.epn.ec
+verify return:1
+ 0 s:C=EC, ST=Pichincha, O=FIS-EPN, OU=IdM, CN=ldap1-expired-test-1784278082.fis.epn.ec
+subject=C=EC, ST=Pichincha, O=FIS-EPN, OU=IdM, CN=ldap1-expired-test-1784278082.fis.epn.ec
+Verification error: certificate has expired
+Verify return code: 10 (certificate has expired)
+
+[6] Restaurando certificado valido en pki-certs (fuente real)...
+Certificado valido restaurado en pki-certs.
+Reiniciando ldap1 con certificado valido restaurado...
+
+[7] Verificando que ldap1 volvio a funcionar con certificado valido...
+OK: ldap1 restaurado y funcionando normalmente.
+
+==========================================
+RESULTADO: Experimento de certificado expirado completado (ldap1)
+Fin: 2026-07-17 03:48:16
+Tiempo de deteccion del rechazo TLS: 177 ms
+Resultados completos en: tests/fault-injection/results-04-expired-cert-ldap1.log
+==========================================
