@@ -1,6 +1,6 @@
 # mini-idm-fis
 
-Este proyecto implementa un laboratorio de gestión de identidad (IdM) de alta disponibilidad en entornos de contenedores (Docker). Diseñado como un banco de pruebas académico para la Escuela Politécnica Nacional (EPN), el stack simula una infraestructura corporativa robusta orientada a evaluar la tolerancia a fallos, la replicación de directorios y la autenticación federada bajo escenarios de estrés e inyección de fallos.
+Este proyecto implementa un laboratorio de gestión de identidad (IdM) de alta disponibilidad en entornos de contenedores (Docker). Simulando una infraestructura orientada a la replicación de directorios y la autenticación bajo escenarios de inyección de fallos.
 
 ## Arquitectura del stack
 
@@ -35,7 +35,7 @@ mini-idm-fis/
 ### Requisitos de sistema
 
 - **Motor de ejecución:** Docker Engine v24 o superior y Docker Compose v2 (integrado como plugin, `docker compose`).
-- **Herramientas:** GNU Make, Git.
+- **Herramientas:** GNU Make, Git, curl.
 - **Recursos:** mínimo 4 GB de RAM y 2 GB de espacio libre en disco.
 - **Soporte de red:** Linux nativo o WSL2 (Windows Subsystem for Linux), requerido debido al uso de capacidades de red avanzadas (`NET_ADMIN`, `NET_RAW`) para la simulación de particiones.
 - **Puertos libres en el host:** 389, 636, 3389, 6636, 88 (UDP/TCP), 464, 749, 8088, 8754, 1389, 1636, 2389, 2636, 8443, 8081 y 9090.
@@ -53,8 +53,6 @@ mini-idm-fis/
    ```powershell
    wsl --install
    ```
-
-   Reiniciar el equipo si el instalador lo solicita.
 
 3. Verificar que la distribución esté usando la versión 2 del subsistema:
 
@@ -88,7 +86,7 @@ git clone https://github.com/DavidMZF/mini-idm-fis
 cd mini-idm-fis
 ```
 
-El archivo `.env` ya se incluye en el repositorio con valores por defecto (dominio `fis.epn.ec`, realm `FIS.EPN.EC` y credenciales de prueba). Puede modificarse antes del primer arranque, pero no es obligatorio para un primer despliegue.
+El archivo `.env` ya se incluye en el repositorio con valores por defecto (dominio `fis.epn.ec`, realm `FIS.EPN.EC` y credenciales de prueba). El `Makefile` carga automáticamente las variables definidas en `.env` (dominio, realm, contraseñas de LDAP y Kerberos).
 
 ## Operación del proyecto
 
@@ -97,7 +95,7 @@ El ciclo de vida del laboratorio está completamente automatizado a través del 
 ### Comandos de ciclo de vida
 
 ```bash
-# Levantar el stack completo (inicializa PKI, LDAP, Kerberos, Webapp y monitoreo)
+# Levantar el stack completo
 make up
 
 # Consultar el estado de los servicios
@@ -122,13 +120,23 @@ make propagate-kerberos
 make help
 ```
 
+`make up` primero detiene cualquier contenedor previo del proyecto , de modo que el comando puede ejecutarse repetidamente sin dejar residuos de una ejecución anterior. Luego levanta el stack en el orden correcto: genera la PKI, inicia LDAP, Kerberos y los balanceadores, espera a que terminen de inicializar, propaga la base de datos de Kerberos hacia el KDC secundario, habilita el backend `cn=monitor` en LDAP, y finalmente levanta la aplicación web y el stack de monitoreo.
+
 ### Demo rápida de autenticación
 
 ```bash
 make kinit-demo
 ```
 
-Este comando obtiene un ticket Kerberos para el usuario de prueba `dnoboa` y lo usa para autenticarse contra la aplicación web mediante SPNEGO.
+Este comando es interactivo: solicita el nombre de un usuario Kerberos (por ejemplo, `dnoboa`, con contraseña `Password2026!`), obtiene un ticket para ese usuario y lo usa de inmediato para autenticarse contra la aplicación web mediante SPNEGO, mostrando la respuesta del servidor.
+
+### Creación de usuarios
+
+```bash
+make create-user UID_=jperez CN="Juan Perez" SN=Perez PASS=Password2026!
+```
+
+Este comando crea un usuario nuevo de forma sincronizada en ambos sistemas: agrega la entrada correspondiente en LDAP (con un número de UID aleatorio dentro del rango 10003-19999) y crea el principal equivalente en Kerberos, con la misma contraseña en ambos casos. Los cuatro parámetros (`UID_`, `CN`, `SN`, `PASS`) son obligatorios; si falta alguno, el comando muestra el modo de uso y no realiza ningún cambio.
 
 ### Pruebas de resiliencia e inyección de fallos
 
@@ -144,8 +152,10 @@ También pueden ejecutarse de forma individual:
 ```bash
 make test-ldap-crash          # Caída del nodo LDAP principal
 make test-kdc-crash           # Caída del KDC de Kerberos
-make test-network-partition   # Partición de red inducida por HAProxy
-make test-expired-cert        # Comportamiento ante certificados expirados
+make test-network-partition   # Partición de red entre nodos
+make test-expired-cert        # Comportamiento ante certificados TLS expirados
+make test-tls-overhead        # Overhead de TLS en la latencia de las solicitudes
+make test-load-balancing      # Balanceo de carga y throughput entre lb1 y lb2
 ```
 
 Los resultados de las pruebas de certificado expirado quedan registrados como archivos de log dentro de `tests/fault-injection/`.
@@ -202,47 +212,9 @@ docker exec ldap1 klist
 docker compose ps lb1 lb2
 ```
 
-### Prueba de acceso web (SPNEGO) por curl
-
-La aplicación web (web1) expone un endpoint protegido por SPNEGO en el puerto 8443. La verificación debe hacerse por línea de comandos usando curl, no desde un navegador.
-
-```bash
-# Intento sin credenciales (retorna código 401 Unauthorized)
-curl -sk -i https://localhost:8443/whoami
-
-# Petición autenticada mediante negociación SPNEGO desde el contenedor cliente
-docker exec ldap1 curl -sk --negotiate -u : https://web1.fis.epn.ec:443/whoami
-```
-
-Si se desea probar desde el host en lugar de desde un contenedor, es necesario contar con un ticket Kerberos válido en la máquina host y con resolución de nombre para `web1.fis.epn.ec`, o bien apuntar la petición directamente al puerto publicado:
-
-```bash
-curl -sk --negotiate -u : https://localhost:8443/whoami
-```
-
 ## Monitoreo y observabilidad
 
 Una vez inicializado el stack, se puede acceder a las siguientes direcciones locales para medir el impacto de la inyección de fallos:
 
-- **Prometheus:** `http://localhost:9090`. Desde la pestaña "Graph" se pueden consultar métricas expuestas por los distintos targets, y desde "Status > Targets" verificar que los tres exporters (cAdvisor, kdc-exporter, ldap-exporter) estén siendo correctamente scrapeados (estado "UP").
+- **Prometheus:** `http://localhost:9090`. Desde la pestaña "Graph" se pueden consultar métricas expuestas por los distintos targets.
 - **cAdvisor:** `http://localhost:8081`. Expone el uso de CPU, memoria, red y disco por contenedor en tiempo real.
-
-Este proyecto solo incorpora Prometheus como interfaz de consulta y no incluye Grafana. La pestaña "Graph" de Prometheus permite igualmente graficar la evolución de una métrica en el tiempo y es suficiente para observar el comportamiento del sistema durante los experimentos.
-
-### Extracción de métricas crudas
-
-Si se desea evaluar los datos crudos transmitidos por los recolectores de métricas dentro de la red del clúster:
-
-```bash
-# Obtener métricas del KDC (por ejemplo, AS_REQ, TGS_REQ)
-docker exec prometheus wget -qO- http://kdc-exporter:9100/metrics
-
-# Obtener métricas de LDAP (incluye retraso de sincronización de réplica)
-docker exec prometheus wget -qO- http://ldap-exporter:9330/metrics
-```
-
-Estas métricas, junto con los logs generados por los propios scripts de `tests/fault-injection/` (que miden por línea de comandos el tiempo de recuperación de cada componente), se complementan para evaluar el comportamiento del sistema ante fallos.
-
-## Notas de seguridad
-
-Las credenciales (`Password2026!`) y configuraciones de dominio (`fis.epn.ec`) provistas en el archivo `.env` se entregan con propósitos puramente académicos e instrumentales para laboratorios locales. No deben ser expuestas en entornos productivos. Adicionalmente, si algún puerto del host listado en los prerrequisitos ya está en uso, `docker compose up` fallará al intentar publicarlo; en ese caso debe liberarse el puerto o modificarse el mapeo correspondiente en `docker-compose.yml`.
